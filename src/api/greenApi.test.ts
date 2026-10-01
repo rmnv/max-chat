@@ -13,7 +13,6 @@ const credentials: Credentials = {
 
 const BASE = 'https://api.green-api.com/waInstance3100000001'
 
-/** Минимальный ответ fetch: клиенту достаточно ok, status и text. */
 function jsonResponse(body: unknown, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -164,8 +163,6 @@ describe('GreenApi.receiveNotification: целостность уведомле�
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ body }))
     const api = new GreenApi(credentials, fetchImpl)
 
-    // receiptId 0 — сигнал вызывающему коду не подтверждать уведомление,
-    // но само тело всё равно должно быть обработано.
     await expect(api.receiveNotification()).resolves.toEqual({ receiptId: 0, body })
   })
 })

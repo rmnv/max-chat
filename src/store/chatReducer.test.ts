@@ -70,7 +70,6 @@ describe('chatReducer: входящие сообщения', () => {
   })
 
   it('не создаёт дубль чата, когда в него уже писали', () => {
-    // Сначала чат создан входящим сообщением, затем в него отправляют ответ.
     const received = chatReducer(emptyHistory, { type: 'event', event: incoming, activeChatId: null })
     const replied = chatReducer(received, {
       type: 'add-outgoing',

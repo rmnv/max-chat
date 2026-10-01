@@ -1,6 +1,4 @@
 
-/* ============================ Общие элементы ============================ */
-
 .button {
   display: inline-flex;
   align-items: center;
@@ -140,8 +138,6 @@
   font-weight: 600;
 }
 
-/* ============================ Экран входа ============================ */
-
 .login {
   display: flex;
   align-items: center;
@@ -245,16 +241,12 @@
   line-height: 16px;
 }
 
-/* ============================ Каркас ============================ */
-
 .layout {
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;
   height: 100%;
   background: var(--bg-primary);
 }
-
-/* ============================ Список чатов ============================ */
 
 .sidebar {
   display: flex;
@@ -415,8 +407,6 @@
   white-space: nowrap;
 }
 
-/* ============================ Область чата ============================ */
-
 .chat {
   display: flex;
   flex-direction: column;
@@ -566,8 +556,6 @@
   font-size: 12px;
 }
 
-/* ============================ Сообщения ============================ */
-
 .message-area {
   position: relative;
   flex: 1;
@@ -627,7 +615,6 @@
   align-items: flex-end;
 }
 
-/* Сообщения подряд от одного отправителя прижимаются друг к другу. */
 .message--incoming + .message--incoming,
 .message--outgoing + .message--outgoing {
   margin-bottom: 2px;
@@ -650,7 +637,7 @@
   box-shadow: 0 1px 1px rgba(6, 7, 8, 0.05);
 }
 
-.bubble--incoming + .message--incoming .bubble {
+.bubble--incoming {
   background: var(--bubble-in);
   color: var(--bubble-in-text);
   border-bottom-left-radius: var(--radius-s);
@@ -732,8 +719,6 @@
 .scroll-down:hover {
   color: var(--text-primary);
 }
-
-/* ============================ Поле ввода ============================ */
 
 .composer {
   display: flex;
@@ -818,14 +803,11 @@
   cursor: not-allowed;
 }
 
-/* ============================ Адаптив ============================ */
-
 @media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
   }
 
-  /* На узком экране показываем либо список чатов, либо переписку. */
   .layout--chat-open .sidebar {
     display: none;
   }

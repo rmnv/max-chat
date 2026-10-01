@@ -38,8 +38,6 @@ export function Composer({ disabled, disabledHint, onSend }: Props) {
     try {
       const result = await onSend(sent)
 
-      // Сравниваем с текущим значением: пока шёл запрос, пользователь мог
-      // допечатать новое сообщение — его стирать нельзя.
       if (result.ok) {
         setText((current) => (current.trim() === sent.trim() ? '' : current))
       }

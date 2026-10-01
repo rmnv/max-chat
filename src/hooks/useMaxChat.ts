@@ -17,21 +17,15 @@ export interface ActionResult {
   error?: string
 }
 
-/** Что мешает получать уведомления: недостающие настройки или занятый webhookUrl. */
 export interface SettingsIssues {
   incomingOff: boolean
   outgoingOff: boolean
   webhookUrlSet: boolean
-  /** Настроек хватает для работы. */
   ok: boolean
 }
 
 const NO_ISSUES: SettingsIssues = { incomingOff: false, outgoingOff: false, webhookUrlSet: false, ok: true }
 
-/**
- * Повторяет запрос, если сбой заведомо временный: превышен rate limiter
- * или оборвалась связь. Ответы 4xx повторять бессмысленно.
- */
 async function withRetry<T>(task: () => Promise<T>): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     try {
@@ -41,8 +35,6 @@ async function withRetry<T>(task: () => Promise<T>): Promise<T> {
 
       if (!isTransient || attempt >= MAX_ATTEMPTS) throw error
 
-      // GetStateInstance и GetSettings допускают один запрос в секунду,
-      // поэтому ждём дольше секунды, иначе повтор снова получит 429.
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
     }
   }
@@ -62,10 +54,6 @@ export function useMaxChat(credentials: Credentials) {
 
   const { dispatch, activeChatId, openChat, ...log } = useChatLog(credentials.idInstance)
 
-  // In-flight запросы. React вызывает эффекты дважды (StrictMode), а
-  // GetStateInstance и GetSettings допускают по одному запросу в секунду:
-  // без защиты вторая пара уходит в тот же интервал, получает 429 и
-  // поднимает баннер на пустом месте. Повторный вызов ждёт тот же запрос.
   const instanceRequest = useRef<Promise<ActionResult> | null>(null)
   const settingsRequest = useRef<Promise<ActionResult> | null>(null)
 
@@ -166,8 +154,6 @@ export function useMaxChat(credentials: Credentials) {
     return { incomingOff, outgoingOff, webhookUrlSet, ok: !incomingOff && !outgoingOff && !webhookUrlSet }
   }, [settings])
 
-  // Опрос не запускаем, пока настройки не прочитаны и не в порядке: иначе цикл
-  // молча запрашивает пустую очередь и выглядит как «сообщения не приходят».
   const { connection, error: connectionError, stats } = useNotificationLoop({
     api,
     enabled: isAuthorized && issues.ok,

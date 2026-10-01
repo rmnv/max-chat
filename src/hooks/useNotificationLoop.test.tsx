@@ -15,10 +15,6 @@ const incoming: NotificationBody = {
   messageData: { typeMessage: 'textMessage', textMessageData: { textMessage: 'Привет' } },
 }
 
-/**
- * Подставной клиент: отдаёт заранее заданные ответы, а когда они кончаются,
- * возвращает промис, который не разрешается — как висящий long-poll запрос.
- */
 function createFakeApi(responses: Array<() => Promise<{ receiptId: number; body: NotificationBody | null }>>) {
   let index = 0
 
@@ -57,7 +53,6 @@ describe('useNotificationLoop', () => {
     expect(onEvent.mock.calls[0]![0]).toMatchObject({ kind: 'incoming-text', remoteId: 'AAA' })
     expect(onEvent.mock.calls[1]![0]).toMatchObject({ kind: 'incoming-text', remoteId: 'BBB' })
 
-    // Подтверждение обязательно, иначе уведомление вернётся в очередь.
     expect(deleteNotification).toHaveBeenNthCalledWith(1, 1, expect.anything())
     expect(deleteNotification).toHaveBeenNthCalledWith(2, 2, expect.anything())
 
@@ -87,9 +82,7 @@ describe('useNotificationLoop', () => {
     await waitFor(() => expect(result.current.connection).toBe('error'), { timeout: 3000 })
     expect(result.current.error).toMatch(/Нет связи/)
 
-    // Первая пауза перед повтором — одна секунда.
     await waitFor(() => expect(result.current.connection).toBe('online'), { timeout: 3000 })
-    // 1 — сбой, 2 — уведомление, 3 — следующий висящий long-poll.
     expect(receiveNotification).toHaveBeenCalledTimes(3)
     expect(onEvent).toHaveBeenCalledTimes(1)
     expect(deleteNotification).toHaveBeenCalledWith(7, expect.anything())

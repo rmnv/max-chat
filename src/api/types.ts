@@ -92,7 +92,6 @@ export interface SetSettingsResponse {
   saveSettings: boolean
 }
 
-/** Настройки, без которых работать нельзя. */
 export const REQUIRED_SETTINGS = {
   incomingWebhook: 'yes',
   outgoingWebhook: 'yes',
@@ -101,7 +100,6 @@ export const REQUIRED_SETTINGS = {
   stateWebhook: 'yes',
   webhookUrl: '',
 } as const satisfies Partial<InstanceSettings>
-
 
 export type WebhookType =
   | 'incomingMessageReceived'

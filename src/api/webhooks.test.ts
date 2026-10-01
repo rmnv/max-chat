@@ -32,7 +32,6 @@ describe('parseWebhook: входящие сообщения', () => {
       chatTitle: 'Ходабрыш Пробешёлов',
       phone: '79876543210',
       text: 'Привет!',
-      // Секунды UNIX переводятся в миллисекунды.
       timestamp: 1763115112000,
       isGroup: false,
     })

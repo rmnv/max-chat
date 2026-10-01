@@ -64,8 +64,6 @@ export class GreenApi {
     const body = response?.body ?? null
     if (!body) return { receiptId: 0, body: null }
 
-    // Тело важнее receiptId: даже если идентификатор не распознан, уведомление
-    // нужно показать, иначе оно молча терялось бы на каждом опросе.
     return { receiptId: toReceiptId(response?.receiptId), body }
   }
 

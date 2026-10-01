@@ -7,13 +7,9 @@ import { parseWebhook } from '../api'
 export type ConnectionState = 'idle' | 'connecting' | 'online' | 'error'
 
 export interface LoopStats {
-  /** Сколько уведомлений успешно получено из очереди. */
   received: number
-  /** Что пришло в последнем уведомлении, без разбора. */
   lastBody: NotificationBody | null
-  /** Когда пришло последнее уведомление. */
   lastReceivedAt: number | null
-  /** Время последней ошибки опроса. */
   lastErrorAt: number | null
 }
 

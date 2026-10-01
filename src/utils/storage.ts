@@ -19,7 +19,6 @@ export function saveJSON(key: string, value: unknown): void {
   try {
     window.localStorage.setItem(key, JSON.stringify(value))
   } catch {
-    // Переполнение квоты или приватный режим браузера.
   }
 }
 
@@ -27,6 +26,5 @@ export function removeItem(key: string): void {
   try {
     window.localStorage.removeItem(key)
   } catch {
-    // Игнорируем.
   }
 }

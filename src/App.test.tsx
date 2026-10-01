@@ -5,12 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import type { NotificationBody } from './api/types'
 
-/**
- * Сквозной тест пользовательского сценария из задания:
- * подключение инстанса → поиск чата по номеру → отправка сообщения →
- * получение ответа от собеседника. GREEN-API заменена подставным fetch.
- */
-
 interface SentMessage {
   chatId: string
   message: string
@@ -24,7 +18,6 @@ function jsonResponse(body: unknown, status = 200): Response {
   } as unknown as Response
 }
 
-/** Подставной GREEN-API: очередь уведомлений и журнал отправленных сообщений. */
 function createGreenApiMock() {
   const queue: Array<{ receiptId: number; body: NotificationBody }> = []
   const waiting: Array<(value: unknown) => void> = []
@@ -83,7 +76,6 @@ function createGreenApiMock() {
     }
 
     if (url.includes('/receiveNotification/')) {
-      // Пока очередь пуста, запрос висит — как настоящий long-poll.
       if (queue.length === 0) {
         return new Promise((resolve) => waiting.push(resolve)) as unknown as Response
       }
@@ -99,7 +91,6 @@ function createGreenApiMock() {
     sent,
     deleted,
     settings,
-    /** Отвечает на висящий long-poll запрос или кладёт уведомление в очередь. */
     pushNotification(body: NotificationBody) {
       receiptId += 1
       const resolve = waiting.shift()
@@ -130,25 +121,20 @@ describe('сценарий пользователя', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    // 1. Ввод учётных данных GREEN-API.
     await user.type(screen.getByLabelText('idInstance'), '3100000001')
     await user.type(screen.getByLabelText('apiTokenInstance'), 'secret-token-value')
     await user.click(screen.getByRole('button', { name: 'Подключить инстанс' }))
 
-    // Инстанс авторизован — доступен ввод номера получателя.
     const newChatButton = await screen.findByRole('button', { name: 'Новый чат' })
     expect(newChatButton).toBeInTheDocument()
 
-    // 2. Создание чата по номеру телефона.
     await user.click(newChatButton)
     await user.type(screen.getByLabelText('Номер телефона получателя'), '79991234567')
     await user.click(screen.getByRole('button', { name: 'Найти' }))
 
     const composer = await screen.findByLabelText('Текст сообщения')
-    // Чат найден по номеру телефона и сразу открыт.
     expect(screen.getByRole('heading', { level: 1, name: '+7 (999) 123-45-67' })).toBeInTheDocument()
 
-    // 3. Отправка текстового сообщения.
     await user.type(composer, 'Привет, это тестовое сообщение{Enter}')
 
     const log = screen.getByRole('log')
@@ -156,10 +142,8 @@ describe('сценарий пользователя', () => {
 
     await waitFor(() => expect(greenApi.sent).toEqual([{ chatId: '10000000', message: 'Привет, это тестовое сообщение' }]))
 
-    // Поле очищается после успешной отправки.
     expect(composer).toHaveValue('')
 
-    // 4. Ответ собеседника из MAX приходит уведомлением.
     greenApi.pushNotification({
       typeWebhook: 'incomingMessageReceived',
       timestamp: Math.floor(Date.now() / 1000),
@@ -176,10 +160,8 @@ describe('сценарий пользователя', () => {
 
     await waitFor(() => expect(within(log).getByText('Привет! Всё получил.')).toBeInTheDocument())
 
-    // Уведомление подтверждено, иначе оно повторно пришло бы в очередь.
     expect(greenApi.deleted).toHaveLength(1)
 
-    // Название чата подхватилось из уведомления.
     expect(within(log).getByText('Привет! Всё получил.').closest('.message')).toHaveClass('message--incoming')
   })
 
@@ -199,17 +181,14 @@ describe('сценарий пользователя', () => {
     await user.type(composer, 'Секретное сообщение{Enter}')
     await waitFor(() => expect(greenApi.sent).toHaveLength(1))
 
-    // Выход из аккаунта: ключ доступа стирается из localStorage.
     await user.click(screen.getByRole('button', { name: 'Отключить инстанс' }))
     expect(await screen.findByRole('button', { name: 'Подключить инстанс' })).toBeInTheDocument()
     expect(window.localStorage.getItem('max-chat.credentials.v1')).toBeNull()
 
-    // Вход в другой инстанс.
     await user.type(screen.getByLabelText('idInstance'), '3100000002')
     await user.type(screen.getByLabelText('apiTokenInstance'), 'another-token')
     await user.click(screen.getByRole('button', { name: 'Подключить инстанс' }))
 
-    // Переписка прошлого инстанса не показывается и не попадает в его историю.
     expect(await screen.findByRole('button', { name: 'Новый чат' })).toBeInTheDocument()
     expect(screen.queryByText('Секретное сообщение')).not.toBeInTheDocument()
 
@@ -223,7 +202,6 @@ describe('сценарий пользователя', () => {
 
   it('обнаруживает выключенный incomingWebhook и предлагает включить', async () => {
     const user = userEvent.setup()
-    // Дефолт GREEN-API: после создания инстанса все настройки выключены.
     greenApi.settings.incomingWebhook = 'no'
     greenApi.settings.webhookUrl = 'https://example.com/hook'
 
@@ -234,7 +212,6 @@ describe('сценарий пользователя', () => {
 
     expect(await screen.findByText('Инстанс не настроен на приём уведомлений')).toBeInTheDocument()
 
-    // Цикл опроса не запускается, пока настройки не в порядке.
     expect(greenApi.fetchMock.mock.calls.some(([url]) => String(url).includes('receiveNotification'))).toBe(
       false,
     )
@@ -274,14 +251,12 @@ describe('сценарий пользователя', () => {
     await user.type(screen.getByLabelText('apiTokenInstance'), 'secret-token-value')
     await user.click(screen.getByRole('button', { name: 'Подключить инстанс' }))
 
-    // Баннер объясняет, что делать, и предлагает повторную проверку.
     expect(await screen.findByText('Инстанс не авторизован')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Новый чат' }))
     await user.type(screen.getByLabelText('Номер телефона получателя'), '79991234567')
     await user.click(screen.getByRole('button', { name: 'Найти' }))
 
-    // Чат открыт, но отправка заблокирована.
     const composer = await screen.findByLabelText('Текст сообщения')
     expect(composer).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Отправить сообщение' })).toBeDisabled()
