@@ -81,9 +81,12 @@ export function LoginScreen({ initialCredentials, onSubmit }: Props) {
           <p>Обмен текстовыми сообщениями через GREEN-API</p>
         </div>
 
-        <label className="field">
-          <span className="field__label">idInstance</span>
+        <div className="field">
+          <label className="field__label" htmlFor="id-instance">
+            idInstance
+          </label>
           <input
+            id="id-instance"
             className="field__input"
             value={idInstance}
             onChange={(event) => setIdInstance(event.target.value)}
@@ -92,11 +95,14 @@ export function LoginScreen({ initialCredentials, onSubmit }: Props) {
             autoComplete="off"
             autoFocus
           />
-        </label>
+        </div>
 
-        <label className="field">
-          <span className="field__label">apiTokenInstance</span>
+        <div className="field">
+          <label className="field__label" htmlFor="api-token">
+            apiTokenInstance
+          </label>
           <input
+            id="api-token"
             className="field__input"
             type="password"
             value={apiTokenInstance}
@@ -104,19 +110,22 @@ export function LoginScreen({ initialCredentials, onSubmit }: Props) {
             placeholder="Ключ доступа инстанса"
             autoComplete="off"
           />
-        </label>
+        </div>
 
         {showAdvanced ? (
-          <label className="field">
-            <span className="field__label">apiUrl</span>
+          <div className="field">
+            <label className="field__label" htmlFor="api-url">
+              apiUrl
+            </label>
             <input
+              id="api-url"
               className="field__input"
               value={apiUrl}
               onChange={(event) => setApiUrl(event.target.value)}
               placeholder={DEFAULT_API_URL}
               autoComplete="off"
             />
-          </label>
+          </div>
         ) : (
           <button type="button" className="login__link" onClick={() => setShowAdvanced((value) => !value)}>
             {showAdvanced ? 'Скрыть' : 'Показать'} адрес API
