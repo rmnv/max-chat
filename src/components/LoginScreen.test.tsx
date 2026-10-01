@@ -33,6 +33,43 @@ describe('LoginScreen', () => {
     expect(screen.getByText(/Проверьте apiTokenInstance/)).toBeInTheDocument()
   })
 
+  it('не принимает apiUrl без схемы', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+
+    render(<LoginScreen initialCredentials={null} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText('idInstance'), '3100000001')
+    await user.type(screen.getByLabelText('apiTokenInstance'), 'secret-token-value')
+    await user.click(screen.getByRole('button', { name: 'Показать адрес API' }))
+    await user.clear(screen.getByLabelText('apiUrl'))
+    await user.type(screen.getByLabelText('apiUrl'), 'api.green-api.com')
+    await user.click(screen.getByRole('button', { name: 'Подключить инстанс' }))
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByText(/должен начинаться с https/)).toBeInTheDocument()
+  })
+
+  it('принимает индивидуальный хост инстанса', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+
+    render(<LoginScreen initialCredentials={null} onSubmit={onSubmit} />)
+
+    await user.type(screen.getByLabelText('idInstance'), '3100000001')
+    await user.type(screen.getByLabelText('apiTokenInstance'), 'secret-token-value')
+    await user.click(screen.getByRole('button', { name: 'Показать адрес API' }))
+    await user.clear(screen.getByLabelText('apiUrl'))
+    await user.type(screen.getByLabelText('apiUrl'), 'https://3100.api.green-api.com')
+    await user.click(screen.getByRole('button', { name: 'Подключить инстанс' }))
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      idInstance: '3100000001',
+      apiTokenInstance: 'secret-token-value',
+      apiUrl: 'https://3100.api.green-api.com',
+    })
+  })
+
   it('передаёт учётные данные без пробелов по краям', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
