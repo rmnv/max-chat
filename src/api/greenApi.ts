@@ -120,8 +120,17 @@ export class GreenApi {
         signal: timeout.signal,
       })
     } catch (error) {
-      if (isAbortError(error)) throw error
-      throw new GreenApiError(extractErrorMessage(null, 0), 0, error)
+      if (timeout.didExpire()) {
+        throw new GreenApiError(
+          `GREEN-API не ответил за ${Math.round(timeoutMs / 1000)} с. Хост ${hostOf(this.credentials.apiUrl)} недоступен или отвечает слишком медленно.`,
+          0,
+          error,
+        )
+      }
+
+      if (externalSignal?.aborted || isAbortError(error)) throw error
+
+      throw new GreenApiError(networkErrorMessage(error, this.credentials.apiUrl), 0, error)
     } finally {
       timeout.dispose()
     }
@@ -160,11 +169,21 @@ async function readPayload(response: Response): Promise<unknown> {
 }
 
 export function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === 'AbortError'
+  return error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')
+}
+
+export function hostOf(apiUrl: string): string {
+  return apiUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '') || apiUrl
+}
+
+function networkErrorMessage(error: unknown, apiUrl: string): string {
+  const reason = error instanceof Error && error.message ? ` (${error.message})` : ''
+  return `Нет связи с ${hostOf(apiUrl)}${reason}. Проверьте интернет, VPN и настройки сети.`
 }
 
 function createTimeoutSignal(externalSignal: AbortSignal | undefined, timeoutMs: number) {
   const controller = new AbortController()
+  let expired = false
 
   const abort = (reason?: unknown) => {
     if (!controller.signal.aborted) {
@@ -172,7 +191,11 @@ function createTimeoutSignal(externalSignal: AbortSignal | undefined, timeoutMs:
     }
   }
 
-  const timer = setTimeout(() => abort(new DOMException('Timeout', 'TimeoutError')), timeoutMs)
+  const timer = setTimeout(() => {
+    expired = true
+    abort(new DOMException('Timeout', 'TimeoutError'))
+  }, timeoutMs)
+
   const handleAbort = () => abort(externalSignal?.reason)
 
   if (externalSignal) {
@@ -182,6 +205,7 @@ function createTimeoutSignal(externalSignal: AbortSignal | undefined, timeoutMs:
 
   return {
     signal: controller.signal,
+    didExpire: () => expired,
     dispose: () => {
       clearTimeout(timer)
       externalSignal?.removeEventListener('abort', handleAbort)

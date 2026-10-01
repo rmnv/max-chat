@@ -1,4 +1,4 @@
-export { GreenApi, isAbortError, DEFAULT_API_URL, MAX_MESSAGE_LENGTH } from './greenApi'
+export { GreenApi, isAbortError, hostOf, DEFAULT_API_URL, MAX_MESSAGE_LENGTH } from './greenApi'
 export type { RequestOptions } from './greenApi'
 export { GreenApiError } from './errors'
 export { parseWebhook } from './webhooks'

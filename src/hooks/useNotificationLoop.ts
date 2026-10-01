@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { GreenApiError, isAbortError } from '../api'
+import { GreenApiError } from '../api'
 import type { ChatEvent, GreenApi, NotificationBody } from '../api'
 import { parseWebhook } from '../api'
 
@@ -87,7 +87,7 @@ export function useNotificationLoop({ api, enabled, onEvent }: Options): {
           setStatus('online')
           setError(null)
         } catch (caught) {
-          if (stopped || controller.signal.aborted || isAbortError(caught)) return
+          if (stopped || controller.signal.aborted) return
 
           failures += 1
           setStatus('error')

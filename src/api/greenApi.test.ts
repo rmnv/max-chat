@@ -45,6 +45,16 @@ describe('GreenApi.buildUrl', () => {
       `${BASE}/getStateInstance/secret-token`,
     )
   })
+
+  it('поддерживает индивидуальный хост инстанса', () => {
+    const apiDedicated = new GreenApi({
+      ...credentials,
+      apiUrl: 'https://3100.api.green-api.com',
+    })
+    expect(apiDedicated.buildUrl('getStateInstance/secret-token')).toBe(
+      'https://3100.api.green-api.com/waInstance3100000001/getStateInstance/secret-token',
+    )
+  })
 })
 
 describe('GreenApi.getStateInstance', () => {
@@ -222,6 +232,31 @@ describe('обработка ошибок', () => {
 
     expect(error).toBeInstanceOf(GreenApiError)
     expect((error as GreenApiError).httpStatus).toBe(0)
+    expect((error as GreenApiError).message).toContain('api.green-api.com')
+    expect((error as GreenApiError).message).toContain('Failed to fetch')
+  })
+
+  it('отличает таймаут от обрыва связи', async () => {
+    vi.useFakeTimers()
+
+    try {
+      const fetchImpl = vi.fn().mockImplementation(
+        async (_url: string, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))
+          }),
+      )
+      const api = new GreenApi(credentials, fetchImpl)
+
+      const pending = api.getStateInstance().catch((caught: unknown) => caught)
+      await vi.advanceTimersByTimeAsync(21_000)
+      const error = await pending
+
+      expect((error as GreenApiError).message).toMatch(/не ответил за 20 с/)
+      expect((error as GreenApiError).message).not.toMatch(/Проверьте интернет/)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('подсказывает про запрет доступа при 403', async () => {
