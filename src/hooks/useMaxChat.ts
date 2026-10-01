@@ -269,5 +269,3 @@ export function useMaxChat(credentials: Credentials) {
     dismissQuotaNotice: () => setIsQuotaExceeded(false),
   }
 }
-
-export type MaxChat = ReturnType<typeof useMaxChat>
