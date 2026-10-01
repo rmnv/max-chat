@@ -1,7 +1,7 @@
 import type { ChatEvent } from '../api'
 import type { Chat, ChatHistory, Message } from '../model'
 
-export type ChatAction =
+type ChatAction =
   | { type: 'hydrate'; history: ChatHistory }
   | { type: 'activate'; chatId: string | null }
   | { type: 'open-chat'; chat: Pick<Chat, 'chatId' | 'title' | 'phone'> }
