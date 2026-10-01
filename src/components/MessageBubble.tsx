@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 import type { Message } from '../model'
 import { formatTime } from '../utils/date'
 import { StatusIcon } from './Icons'
@@ -6,7 +8,7 @@ interface Props {
   message: Message
 }
 
-export function MessageBubble({ message }: Props) {
+export const MessageBubble = memo(function MessageBubble({ message }: Props) {
   const isOutgoing = message.direction === 'outgoing'
   const isFailed = message.status === 'failed'
 
@@ -23,4 +25,4 @@ export function MessageBubble({ message }: Props) {
       {isFailed && message.error ? <p className="bubble__error">{message.error}</p> : null}
     </div>
   )
-}
+})
