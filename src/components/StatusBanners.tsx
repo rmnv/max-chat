@@ -1,6 +1,6 @@
 import type { InstanceSettings, InstanceState } from '../api'
-import type { LoopStats } from '../hooks/useNotificationLoop'
-import type { ConnectionState } from '../hooks/useNotificationLoop'
+import type { SettingsIssues } from '../hooks/useMaxChat'
+import type { ConnectionState, LoopStats } from '../hooks/useNotificationLoop'
 import { Banner } from './Banner'
 import { RefreshIcon } from './Icons'
 
@@ -12,21 +12,14 @@ interface Props {
   stats: LoopStats
   settings: InstanceSettings | null
   settingsError: string | null
-  issues: SettingsIssuesView
+  issues: SettingsIssues
   isFixingSettings: boolean
   settingsFixNote: string | null
+  isQuotaExceeded: boolean
   onRetry: () => void
   onRefreshSettings: () => void
   onFixSettings: () => void
   onDismissQuota: () => void
-  isQuotaExceeded: boolean
-}
-
-export interface SettingsIssuesView {
-  incomingOff: boolean
-  outgoingOff: boolean
-  webhookUrlSet: boolean
-  ok: boolean
 }
 
 export function StatusBanners({
@@ -40,111 +33,126 @@ export function StatusBanners({
   issues,
   isFixingSettings,
   settingsFixNote,
+  isQuotaExceeded,
   onRetry,
   onRefreshSettings,
   onFixSettings,
   onDismissQuota,
-  isQuotaExceeded,
 }: Props) {
-  const hasBanner =
-    instanceState === 'notAuthorized' ||
-    instanceState === 'blocked' ||
-    instanceState === 'suspended' ||
-    instanceState === 'starting' ||
-    Boolean(instanceError) ||
-    Boolean(settingsError) ||
-    settingsFixNote !== null ||
-    (settings !== null && !issues.ok) ||
-    connection === 'error' ||
-    isQuotaExceeded
+  const banners = [
+    settings !== null && !issues.ok ? (
+      <Banner
+        key="issues"
+        tone="danger"
+        title="Инстанс не настроен на приём уведомлений"
+        onRetry={isFixingSettings ? undefined : onFixSettings}
+        retryLabel="Включить и очистить очередь"
+      >
+        {issues.incomingOff
+          ? 'Выключен переключатель «Получать уведомления о входящих сообщениях» (incomingWebhook) — входящие сообщения не попадают в очередь.'
+          : null}
+        {issues.outgoingOff
+          ? 'Не включён приём статусов и сообщений с телефона (outgoingWebhook, outgoingMessageWebhook).'
+          : null}
+        {issues.webhookUrlSet
+          ? 'Указан webhookUrl — при заполненном поле метод ReceiveNotification не работает, поле должно быть пустым.'
+          : null}{' '}
+        {isFixingSettings
+          ? 'Сохраняем…'
+          : 'Кнопка включит нужные переключатели и очистит webhookUrl. Внимание: GREEN-API перезапустит инстанс, настройки применятся в течение 5 минут.'}
+      </Banner>
+    ) : null,
 
-  if (!hasBanner) return null
+    settingsFixNote ? (
+      <Banner key="fixNote" tone="info" title="Настройки сохранены">
+        {settingsFixNote}
+      </Banner>
+    ) : null,
+
+    settingsError ? (
+      <Banner
+        key="settingsError"
+        tone="warning"
+        title="Не удалось прочитать настройки инстанса"
+        onRetry={onRefreshSettings}
+        retryLabel="Перечитать"
+      >
+        {settingsError} Пока настройки не прочитаны, приём уведомлений не запускается.
+      </Banner>
+    ) : null,
+
+    instanceState === 'notAuthorized' ? (
+      <Banner
+        key="notAuthorized"
+        tone="warning"
+        title="Инстанс не авторизован"
+        onRetry={onRetry}
+        retryLabel="Проверить"
+      >
+        Откройте личный кабинет GREEN-API, получите QR-код инстанса и отсканируйте его в
+        приложении MAX. Входящие и исходящие сообщения заработают после авторизации.
+      </Banner>
+    ) : null,
+
+    instanceState === 'blocked' ? (
+      <Banner
+        key="blocked"
+        tone="danger"
+        title="Аккаунт MAX заблокирован"
+        onRetry={onRetry}
+        retryLabel="Проверить"
+      >
+        Отправка и получение сообщений недоступны до снятия блокировки на стороне мессенджера.
+      </Banner>
+    ) : null,
+
+    instanceState === 'suspended' ? (
+      <Banner key="suspended" tone="warning" title="На аккаунте временные ограничения">
+        Отправка работает только для номеров, сохранивших ваш номер в контактах.
+      </Banner>
+    ) : null,
+
+    instanceState === 'starting' ? (
+      <Banner key="starting" tone="info" title="Инстанс запускается">
+        Переход в рабочее состояние занимает до нескольких минут. Страница обновит статус
+        автоматически.
+      </Banner>
+    ) : null,
+
+    instanceError ? (
+      <Banner key="instanceError" tone="danger" title="Нет связи с GREEN-API" onRetry={onRetry}>
+        {instanceError}
+      </Banner>
+    ) : null,
+
+    connection === 'error' && connectionError ? (
+      <Banner
+        key="connectionError"
+        tone="danger"
+        title="Получение уведомлений приостановлено"
+        onRetry={onRetry}
+      >
+        {connectionError} Запросы повторяются автоматически.
+      </Banner>
+    ) : null,
+
+    isQuotaExceeded ? (
+      <Banner
+        key="quota"
+        tone="warning"
+        title="Превышены ограничения тарифа"
+        onDismiss={onDismissQuota}
+      >
+        На тарифе MAX Developer доступно 3 чата. Дальнейшая отправка может быть недоступна.
+      </Banner>
+    ) : null,
+  ].filter(Boolean)
+
+  if (banners.length === 0) return null
 
   return (
     <div className="banners">
-      {!issues.ok ? (
-        <Banner
-          tone="danger"
-          title="Инстанс не настроен на приём уведомлений"
-          onRetry={isFixingSettings ? undefined : onFixSettings}
-          retryLabel="Включить и очистить очередь"
-        >
-          {issues.incomingOff
-            ? 'Выключен переключатель «Получать уведомления о входящих сообщениях» (incomingWebhook) — входящие сообщения не попадают в очередь.'
-            : null}
-          {issues.outgoingOff
-            ? 'Не включён приём статусов и сообщений с телефона (outgoingWebhook, outgoingMessageWebhook).'
-            : null}
-          {issues.webhookUrlSet
-            ? 'Указан webhookUrl — при заполненном поле метод ReceiveNotification не работает, поле должно быть пустым.'
-            : null}{' '}
-          {isFixingSettings
-            ? 'Сохраняем…'
-            : 'Кнопка включит нужные переключатели и очистит webhookUrl. Внимание: GREEN-API перезапустит инстанс, настройки применятся в течение 5 минут.'}
-        </Banner>
-      ) : null}
-
-      {settingsFixNote ? (
-        <Banner tone="info" title="Настройки сохранены">
-          {settingsFixNote}
-        </Banner>
-      ) : null}
-
-      {settingsError ? (
-        <Banner
-          tone="warning"
-          title="Не удалось прочитать настройки инстанса"
-          onRetry={onRefreshSettings}
-          retryLabel="Перечитать"
-        >
-          {settingsError} Пока настройки не прочитаны, приём уведомлений не запускается.
-        </Banner>
-      ) : null}
-
-      {instanceState === 'notAuthorized' ? (
-        <Banner tone="warning" title="Инстанс не авторизован" onRetry={onRetry} retryLabel="Проверить">
-          Откройте личный кабинет GREEN-API, получите QR-код инстанса и отсканируйте его в
-          приложении MAX. Входящие и исходящие сообщения заработают после авторизации.
-        </Banner>
-      ) : null}
-
-      {instanceState === 'blocked' ? (
-        <Banner tone="danger" title="Аккаунт MAX заблокирован" onRetry={onRetry} retryLabel="Проверить">
-          Отправка и получение сообщений недоступны до снятия блокировки на стороне мессенджера.
-        </Banner>
-      ) : null}
-
-      {instanceState === 'suspended' ? (
-        <Banner tone="warning" title="На аккаунте временные ограничения">
-          Отправка работает только для номеров, сохранивших ваш номер в контактах.
-        </Banner>
-      ) : null}
-
-      {instanceState === 'starting' ? (
-        <Banner tone="info" title="Инстанс запускается">
-          Переход в рабочее состояние занимает до нескольких минут. Страница обновит статус
-          автоматически.
-        </Banner>
-      ) : null}
-
-      {instanceError ? (
-        <Banner tone="danger" title="Нет связи с GREEN-API" onRetry={onRetry}>
-          {instanceError}
-        </Banner>
-      ) : null}
-
-      {connection === 'error' && connectionError ? (
-        <Banner tone="danger" title="Получение уведомлений приостановлено" onRetry={onRetry}>
-          {connectionError} Запросы повторяются автоматически.
-        </Banner>
-      ) : null}
-
-      {isQuotaExceeded ? (
-        <Banner tone="warning" title="Превышены ограничения тарифа" onDismiss={onDismissQuota}>
-          На тарифе MAX Developer доступно 3 чата. Дальнейшая отправка может быть недоступна.
-        </Banner>
-      ) : null}
-
+      {banners}
       <details className="diagnostics">
         <summary>
           <RefreshIcon size={14} />
@@ -187,10 +195,10 @@ function DiagnosticsBody({
       <dd>{connection}</dd>
 
       <dt>incomingWebhook</dt>
-      <dd>{settings ? settings.incomingWebhook : '—'}</dd>
+      <dd>{settings?.incomingWebhook ?? '—'}</dd>
 
       <dt>outgoingWebhook</dt>
-      <dd>{settings ? settings.outgoingWebhook : '—'}</dd>
+      <dd>{settings?.outgoingWebhook ?? '—'}</dd>
 
       <dt>webhookUrl</dt>
       <dd>{settings ? (settings.webhookUrl === '' ? 'пусто' : settings.webhookUrl) : '—'}</dd>
