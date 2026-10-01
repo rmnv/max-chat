@@ -155,6 +155,8 @@ export function StatusBanners({
           connection={connection}
           stats={stats}
           settings={settings}
+          instanceError={instanceError}
+          connectionError={connectionError}
         />
       </details>
     </div>
@@ -166,11 +168,15 @@ function DiagnosticsBody({
   connection,
   stats,
   settings,
+  instanceError,
+  connectionError,
 }: {
   instanceState: InstanceState | null
   connection: ConnectionState
   stats: LoopStats
   settings: InstanceSettings | null
+  instanceError: string | null
+  connectionError: string | null
 }) {
   return (
     <dl className="diagnostics__grid">
@@ -191,6 +197,12 @@ function DiagnosticsBody({
 
       <dt>Уведомлений получено</dt>
       <dd>{stats.received}</dd>
+
+      <dt>Последняя ошибка состояния</dt>
+      <dd>{instanceError ?? 'нет'}</dd>
+
+      <dt>Последняя ошибка опроса</dt>
+      <dd>{connectionError ?? 'нет'}</dd>
 
       <dt>Последнее уведомление</dt>
       <dd>{stats.lastBody ? JSON.stringify(stats.lastBody) : 'ни одного'}</dd>
