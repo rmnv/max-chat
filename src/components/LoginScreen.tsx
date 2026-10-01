@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { DEFAULT_API_URL } from '../api'
+import { DEFAULT_API_URL, GreenApi, hostOf } from '../api'
 import type { Credentials } from '../api'
 import { MaxLogo } from './Icons'
 
@@ -12,12 +12,39 @@ interface Props {
 
 const ID_INSTANCE_PATTERN = /^\d+$/
 
+type Probe =
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'ok'; stateInstance: string }
+  | { state: 'failed'; reason: string }
+
 export function LoginScreen({ initialCredentials, onSubmit }: Props) {
   const [idInstance, setIdInstance] = useState(initialCredentials?.idInstance ?? '')
   const [apiTokenInstance, setApiTokenInstance] = useState(initialCredentials?.apiTokenInstance ?? '')
   const [apiUrl, setApiUrl] = useState(initialCredentials?.apiUrl ?? DEFAULT_API_URL)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [probe, setProbe] = useState<Probe>({ state: 'idle' })
+
+  async function handleProbe() {
+    setProbe({ state: 'checking' })
+
+    try {
+      const api = new GreenApi({
+        idInstance: idInstance.trim() || '0',
+        apiTokenInstance: apiTokenInstance.trim() || 'probe',
+        apiUrl: apiUrl.trim() || DEFAULT_API_URL,
+      })
+
+      const { stateInstance } = await api.getStateInstance()
+      setProbe({ state: 'ok', stateInstance })
+    } catch (caught) {
+      setProbe({
+        state: 'failed',
+        reason: caught instanceof Error ? caught.message : 'Неизвестная ошибка.',
+      })
+    }
+  }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -97,6 +124,28 @@ export function LoginScreen({ initialCredentials, onSubmit }: Props) {
         )}
 
         {error ? <p className="login__error">{error}</p> : null}
+
+        {probe.state !== 'idle' ? (
+          <p
+            className={`login__probe login__probe--${probe.state === 'ok' ? 'ok' : probe.state === 'failed' ? 'failed' : 'pending'}`}
+            role="status"
+          >
+            {probe.state === 'checking'
+              ? `Проверяем ${hostOf(apiUrl || DEFAULT_API_URL)}…`
+              : probe.state === 'ok'
+                ? `API отвечает, состояние инстанса: ${probe.stateInstance}.`
+                : probe.reason}
+          </p>
+        ) : null}
+
+        <button
+          type="button"
+          className="button button--ghost login__probe-button"
+          onClick={() => void handleProbe()}
+          disabled={probe.state === 'checking'}
+        >
+          {probe.state === 'checking' ? 'Проверяем…' : 'Проверить доступность API'}
+        </button>
 
         <button type="submit" className="button button--primary login__submit">
           Подключить инстанс

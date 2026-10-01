@@ -1,3 +1,4 @@
+
 /* ============================ Общие элементы ============================ */
 
 .button {
@@ -202,6 +203,34 @@
   background: #d9363614;
   color: var(--negative);
   font-size: 13px;
+}
+
+.login__probe {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-s);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.login__probe--ok {
+  background: #2bc6441f;
+  color: var(--positive);
+}
+
+.login__probe--failed {
+  background: #d9363614;
+  color: var(--negative);
+}
+
+.login__probe--pending {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.login__probe-button {
+  align-self: flex-start;
+  padding-left: 0;
 }
 
 .login__submit {
@@ -621,7 +650,7 @@
   box-shadow: 0 1px 1px rgba(6, 7, 8, 0.05);
 }
 
-.bubble--incoming {
+.bubble--incoming + .message--incoming .bubble {
   background: var(--bubble-in);
   color: var(--bubble-in-text);
   border-bottom-left-radius: var(--radius-s);
