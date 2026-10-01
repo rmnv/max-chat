@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { GreenApi, REQUIRED_SETTINGS } from '../api'
+import { GreenApi, GreenApiError, REQUIRED_SETTINGS } from '../api'
 import type { ChatEvent, Credentials, InstanceSettings, InstanceState } from '../api'
 import type { Message } from '../model'
 import { formatPhone, normalizePhone } from '../utils/phone'
@@ -9,6 +9,8 @@ import { useChatLog } from './useChatLog'
 import { useNotificationLoop } from './useNotificationLoop'
 
 const STATE_REFRESH_MS = 60_000
+const MAX_ATTEMPTS = 2
+const RETRY_DELAY_MS = 1_200
 
 export interface ActionResult {
   ok: boolean
@@ -26,6 +28,26 @@ export interface SettingsIssues {
 
 const NO_ISSUES: SettingsIssues = { incomingOff: false, outgoingOff: false, webhookUrlSet: false, ok: true }
 
+/**
+ * Повторяет запрос, если сбой заведомо временный: превышен rate limiter
+ * или оборвалась связь. Ответы 4xx повторять бессмысленно.
+ */
+async function withRetry<T>(task: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await task()
+    } catch (error) {
+      const isTransient = error instanceof GreenApiError && (error.httpStatus === 429 || error.httpStatus === 0)
+
+      if (!isTransient || attempt >= MAX_ATTEMPTS) throw error
+
+      // GetStateInstance и GetSettings допускают один запрос в секунду,
+      // поэтому ждём дольше секунды, иначе повтор снова получит 429.
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+    }
+  }
+}
+
 export function useMaxChat(credentials: Credentials) {
   const api = useMemo(() => new GreenApi(credentials), [credentials])
 
@@ -40,33 +62,57 @@ export function useMaxChat(credentials: Credentials) {
 
   const { dispatch, activeChatId, openChat, ...log } = useChatLog(credentials.idInstance)
 
-  const refreshInstanceState = useCallback(async (): Promise<ActionResult> => {
-    setIsCheckingState(true)
-    setInstanceError(null)
+  // In-flight запросы. React вызывает эффекты дважды (StrictMode), а
+  // GetStateInstance и GetSettings допускают по одному запросу в секунду:
+  // без защиты вторая пара уходит в тот же интервал, получает 429 и
+  // поднимает баннер на пустом месте. Повторный вызов ждёт тот же запрос.
+  const instanceRequest = useRef<Promise<ActionResult> | null>(null)
+  const settingsRequest = useRef<Promise<ActionResult> | null>(null)
 
-    try {
-      const { stateInstance } = await api.getStateInstance()
-      setInstanceState(stateInstance)
-      return { ok: true }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось получить состояние инстанса.'
-      setInstanceError(message)
-      return { ok: false, error: message }
-    } finally {
+  const refreshInstanceState = useCallback((): Promise<ActionResult> => {
+    if (instanceRequest.current) return instanceRequest.current
+
+    const request = (async (): Promise<ActionResult> => {
+      setIsCheckingState(true)
+      setInstanceError(null)
+
+      try {
+        const { stateInstance } = await withRetry(() => api.getStateInstance())
+        setInstanceState(stateInstance)
+        return { ok: true }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Не удалось получить состояние инстанса.'
+        setInstanceError(message)
+        return { ok: false, error: message }
+      }
+    })().finally(() => {
+      instanceRequest.current = null
       setIsCheckingState(false)
-    }
+    })
+
+    instanceRequest.current = request
+    return request
   }, [api])
 
-  const refreshSettings = useCallback(async (): Promise<ActionResult> => {
-    try {
-      setSettings(await api.getSettings())
-      setSettingsError(null)
-      return { ok: true }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось прочитать настройки инстанса.'
-      setSettingsError(message)
-      return { ok: false, error: message }
-    }
+  const refreshSettings = useCallback((): Promise<ActionResult> => {
+    if (settingsRequest.current) return settingsRequest.current
+
+    const request = (async (): Promise<ActionResult> => {
+      try {
+        setSettings(await withRetry(() => api.getSettings()))
+        setSettingsError(null)
+        return { ok: true }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Не удалось прочитать настройки инстанса.'
+        setSettingsError(message)
+        return { ok: false, error: message }
+      }
+    })().finally(() => {
+      settingsRequest.current = null
+    })
+
+    settingsRequest.current = request
+    return request
   }, [api])
 
   const fixSettings = useCallback(async (): Promise<ActionResult> => {
