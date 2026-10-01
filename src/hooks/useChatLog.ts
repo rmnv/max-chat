@@ -1,16 +1,41 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import { chatReducer } from '../store/chatReducer'
-import type { Chat, Message } from '../model'
+import type { Chat, ChatHistory, Message } from '../model'
 import { historyKey, loadJSON, saveJSON } from '../utils/storage'
+
+const SAVE_DEBOUNCE_MS = 400
 
 export function useChatLog(idInstance: string) {
   const [state, dispatch] = useReducer(chatReducer, idInstance, loadHistory)
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
 
+  const latestState = useRef(state)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
-    saveJSON(historyKey(idInstance), state)
+    latestState.current = state
+
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null
+      saveJSON(historyKey(idInstance), latestState.current)
+    }, SAVE_DEBOUNCE_MS)
+
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+    }
   }, [idInstance, state])
+
+  useEffect(
+    () => () => {
+      if (!saveTimer.current) return
+      clearTimeout(saveTimer.current)
+      saveTimer.current = null
+      saveJSON(historyKey(idInstance), latestState.current)
+    },
+    [idInstance],
+  )
 
   const activate = useCallback((chatId: string | null) => {
     setActiveChatId(chatId)
@@ -63,6 +88,6 @@ export function useChatLog(idInstance: string) {
   }
 }
 
-function loadHistory(idInstance: string) {
-  return loadJSON<ReturnType<typeof chatReducer>>(historyKey(idInstance)) ?? { chats: [], messages: [] }
+function loadHistory(idInstance: string): ChatHistory {
+  return loadJSON<ChatHistory>(historyKey(idInstance)) ?? { chats: [], messages: [] }
 }
